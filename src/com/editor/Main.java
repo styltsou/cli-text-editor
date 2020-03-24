@@ -1,6 +1,7 @@
 package com.editor;
 
 import java.io.File;
+import java.io.IOException;
 
 public class Main {
 
@@ -10,38 +11,49 @@ public class Main {
     }
 
     public static void main(String[] args) {
+        // Set editor's max line length
         int MAX_LINE_LENGTH = 80;
+
+        // Set for indexing file parameters
+        int MIN_WORD_LENGTH = 2;
+        int MAX_WORD_LENGTH = 8;
+        int PAGE_SIZE = 128;
+
         TextEditor editor;
 
         // Set the path where the program looks for files.
-        String desktopPath = System.getProperty("user.home") + "/Desktop/";
+        String basePath = System.getProperty("user.home") + "/Desktop/";
 
         // Change path's format to be compatible with Windows if needed.
         if (System.getProperty("os.name").toLowerCase().equals("windows")) {
-            desktopPath = desktopPath.replace('/', '\\');
+            basePath = basePath.replace('/', '\\');
         }
 
-        // Parse command line argument (filename) and set up a new text editor.
+        // Parse command line argument (filename) and open a new text editor.
         if (args.length > 0) {
-            File file = findFile(desktopPath,args[0]);
+            File file = findFile(basePath, args[0]);
+
+            // Set up a new editor and set the file path for the file that is open in the editor.
+            editor = new TextEditor(MAX_LINE_LENGTH, MIN_WORD_LENGTH, MAX_WORD_LENGTH, PAGE_SIZE);
+            editor.setFilePath(file.getPath());
 
             if (file.exists()) {
-                editor = new TextEditor(MAX_LINE_LENGTH);
-                editor.setFilePath(file.getPath());
                 editor.parseFile(file);
-
                 System.out.println(args[0] + " is open in the editor.");
             } else {
-                editor = new TextEditor(MAX_LINE_LENGTH);
-                editor.setBasePath(desktopPath);
+                try {
+                    file.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
 
-                System.out.println("File does not exist. A blank text editor has opened.");
+                System.out.println("File does not exist. A new empty file was created");
             }
         } else {
-           editor = new TextEditor(MAX_LINE_LENGTH);
-           editor.setBasePath(desktopPath);
+           editor = new TextEditor(MAX_LINE_LENGTH, MIN_WORD_LENGTH, MAX_WORD_LENGTH, PAGE_SIZE);
+           editor.setBasePath(basePath);
 
-            System.out.println("A blank text editor has opened.");
+           System.out.println("A blank text editor has opened.");
         }
 
         CommandListener.listen(editor);

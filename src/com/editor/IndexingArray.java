@@ -58,7 +58,6 @@ public class IndexingArray {
                 pairsList.add(new Pair(word, i));
             }
         }
-
         // Now pairsList contains all of the data.
         // Store pairsList data to pairs array (class field)
         pairs = new Pair[pairsList.size()];

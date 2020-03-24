@@ -64,12 +64,13 @@ public class CommandListener {
                     editor.createIdxFile();
                     break;
                 case "v":
-                    IndexingArray idxArr = new IndexingArray(1, 10);
-                    idxArr.populate(editor.getEditorContent());
-
-                    for (int i = 0; i < idxArr.getPairs().length; i++) {
-                        System.out.println(idxArr.getPairs()[i].getWord() + " : " + idxArr.getPairs()[i].getLineOccurrence());
-                    }
+                    editor.printIdxFile();
+                    break;
+                case "s":
+                    editor.printSearchResults(scanner, true);
+                    break;
+                case "b":
+                    editor.printSearchResults(scanner, false);
                     break;
                 case "clear":
                     // Clear console's output
