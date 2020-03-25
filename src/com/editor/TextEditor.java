@@ -2,6 +2,9 @@ package com.editor;
 
 import java.io.*;
 import java.util.Scanner;
+import java.nio.ByteBuffer;
+
+import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class TextEditor {
     private String basePath;
@@ -10,21 +13,21 @@ public class TextEditor {
     private int maxLineLength;
     private int currentLine;
     private boolean isLineNumberVisible;
-    private int minWordLength;
-    private int maxWordLength;
-    private int pageSize;
+    private int minWordSize;
+    private int maxWordSize;
+    private int bufferSize;
 
     // Constructor
-    public TextEditor(int maxLineLength, int minWordLength, int maxWordLength, int pageSize) {
+    public TextEditor(int maxLineLength, int minWordSize, int maxWordSize, int bufferSize) {
         basePath ="";
         filePath = "";
         this.editorContent = new DoublyLinkedList<>();
         this.maxLineLength = maxLineLength;
         this.currentLine = 1;
         this.isLineNumberVisible = true;
-        this.minWordLength = minWordLength;
-        this.maxWordLength = maxWordLength;
-        this.pageSize = pageSize;
+        this.minWordSize = minWordSize;
+        this.maxWordSize = maxWordSize;
+        this.bufferSize = bufferSize;
     }
 
     public TextEditor(DoublyLinkedList<Line> editorContent, int maxLineLength) {
@@ -82,28 +85,28 @@ public class TextEditor {
         isLineNumberVisible = lineNumberVisible;
     }
 
-    public int getMinWordLength() {
-        return minWordLength;
+    public int getMinWordSize() {
+        return minWordSize;
     }
 
-    public void setMinWordLength(int minWordLength) {
-        this.minWordLength = minWordLength;
+    public void setMinWordSize(int minWordSize) {
+        this.minWordSize = minWordSize;
     }
 
-    public int getMaxWordLength() {
-        return maxWordLength;
+    public int getMaxWordSize() {
+        return maxWordSize;
     }
 
-    public void setMaxWordLength(int maxWordLength) {
-        this.maxWordLength = maxWordLength;
+    public void setMaxWordSize(int maxWordSize) {
+        this.maxWordSize = maxWordSize;
     }
 
-    public int getPageSize() {
-        return pageSize;
+    public int getBufferSize() {
+        return bufferSize;
     }
 
-    public void setPageSize(int pageSize) {
-        this.pageSize = pageSize;
+    public void setBufferSize(int bufferSize) {
+        this.bufferSize = bufferSize;
     }
 
 
@@ -214,6 +217,11 @@ public class TextEditor {
     public void deleteLine() {
         editorContent.remove(editorContent.getNthNode(currentLine));
         resetLineNumbersAfterRemove(currentLine);
+
+        if (currentLine == editorContent.size() + 1) {
+            currentLine--;
+        }
+
         System.out.println("Line removed");
     }
 
@@ -308,50 +316,92 @@ public class TextEditor {
 
     // Create a new index file and print the number of pages.
     public void createIdxFile() {
-        // Number of index file's pages.
-        int numOfPages = 0;
+        RandomAccessFile idxFile = null;
 
         // If there's no text file saved on disk, display an appropriate message.
         if (filePath.length() == 0) {
             System.out.println("You need to save the file on disk in order to create an indexing file.");
             return;
-        } else {
-            // If there's a text file saved on disk, create a new indexing file named '[text_file_name].txt.ndx'
-            try {
-                RandomAccessFile indexFile = new RandomAccessFile(filePath + ".ndx", "rw");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        }
+
+        // Create a new indexing file named '[text_file_name].txt.ndx'
+        try {
+            idxFile = new RandomAccessFile(filePath + ".ndx", "rw");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
         // Create a new indexing array (idxArray)
-        IndexingArray array = new IndexingArray(minWordLength, maxWordLength);
+        IndexingArray array = new IndexingArray(minWordSize, maxWordSize);
         array.populate(editorContent);
         Pair[] idxArray = array.getPairs();
 
-        // Write idxArray data to the index file
+        // Create a new Byte Buffer
+        ByteBuffer byteBuffer = ByteBuffer.allocate(bufferSize);
+        // Number of entries that a buffer can hold.
+        // every entry's size is maxWordSize + 4 bytes
+        int numOfMaxEntries = Math.floorDiv(bufferSize, maxWordSize + 4);
+        // The number of the entries inside the buffer.
+        int entryNumber = 0;
 
+        // Insert indexing array's data into the buffer
+        for (Pair pair : idxArray) {
+            // if byte buffer is not full
+             // add pair inside
+            //else dump buffer's data into the file and then clear it.
+            if (entryNumber <= numOfMaxEntries) {
+                insertPairToBuffer(byteBuffer, pair);
+                entryNumber++;
+            } else {
+                writeBufferToFile(byteBuffer, idxFile);
+                System.out.println("Made it here");
+                byteBuffer.clear();
+                System.out.println("Should be clear");
+            }
+        }
 
-        // Print data to the terminal
+        // Write remaining data from buffer to index file.
+        writeBufferToFile(byteBuffer, idxFile);
+        byteBuffer.clear();
+
+        // Add 0 in the end of the file.
+        try {
+            idxFile.seek(idxFile.length());
+            idxFile.write("0".getBytes(US_ASCII));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        int numOfPages = 0;
+        // The actual size of the data in bytes is 4 bytes less than the files size due to the 0 integer in the end of the last page.
+        try {
+            numOfPages = (int) Math.ceil((double) (idxFile.length() - 4) / bufferSize);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         System.out.println("Indexing file created successfully");
         System.out.println("Number of pages: " + numOfPages);
     };
 
-    // Print index file's data in the terminal.
+//     Print index file's data in the terminal.
     public void printIdxFile() {
-        System.out.println("Index file");
+        if (!doesIdxFileExists()) {
+            System.out.println("Index file doesn't exists.\nType in 'c' to create one");
+            return;
+        }
+
+
     }
 
     // Print the results of a word search.
     // Argument 'isLinearSearch' determines the searching algorithm to be applied.
     public void printSearchResults(Scanner scanner, boolean isLinearSearch) {
-        // Check if an index file exists.
         if (!doesIdxFileExists()) {
             System.out.println("You must create an indexing file in order to search for a word.\nType in 'c' to create one");
             return;
         }
 
-        // Prompt user to type a word for search.
         System.out.println("Type a word for search");
         String word = scanner.nextLine();
 
@@ -364,7 +414,6 @@ public class TextEditor {
             searchData = binarySearch(word);
         }
 
-        // Print search results on terminal
         System.out.println("'" + word + "' is on lines:");
         for (int lineOccurrence : searchData.getLineOccurrences()) {
             System.out.print(lineOccurrence);
@@ -408,9 +457,46 @@ public class TextEditor {
             return false;
         }
 
-        // Index file corresponding to the text file that is open in the editor.
         File file = new File(filePath + ".ndx");
-
         return file.exists();
+    }
+
+    // Insert a Pair object inside a ByteBuffer
+    public void insertPairToBuffer(ByteBuffer byteBuffer, Pair pair) {
+        // Inset word into the buffer;
+        byteBuffer.put(pair.getWord().getBytes(US_ASCII));
+
+        // If there is remaining space, fill it with space characters
+        if (pair.getWord().length() < maxWordSize) {
+            for (int i = 0; i < maxWordSize - pair.getWord().length(); i++) {
+                byteBuffer.put(" ".getBytes(US_ASCII));
+            }
+        }
+        // Insert line number into the buffer
+        byteBuffer.putInt(pair.getLineOccurrence());
+    }
+
+    public void writeBufferToFile(ByteBuffer byteBuffer, RandomAccessFile idxFile) {
+        // Create byte array
+        byte[] byteArray = byteBuffer.array();
+        // Write data to file
+        try {
+            // write byte array's data to lines.
+            for (int i = 0; i < byteArray.length; i++) {
+                idxFile.seek(idxFile.length());
+                idxFile.write(byteArray[i]);
+
+                // Separate entries with a new line
+                // entrySize - 1 = maxWordSize + 3
+//                if ((i % (maxWordSize + 3)) == 0) {
+//                    idxFile.writeBytes(System.getProperty("line.separator"));
+//                }
+            }
+            // Write a zero in the end of the file to indicate the last line of data.
+            idxFile.seek(idxFile.length());
+//                    idxFile.write("0".getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

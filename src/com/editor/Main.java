@@ -15,9 +15,9 @@ public class Main {
         int MAX_LINE_LENGTH = 80;
 
         // Set for indexing file parameters
-        int MIN_WORD_LENGTH = 2;
-        int MAX_WORD_LENGTH = 8;
-        int PAGE_SIZE = 128;
+        int MIN_WORD_SIZE = 1;
+        int MAX_WORD_SIZE = 6;
+        int BUFFER_SIZE = 50;
 
         TextEditor editor;
 
@@ -34,7 +34,7 @@ public class Main {
             File file = findFile(basePath, args[0]);
 
             // Set up a new editor and set the file path for the file that is open in the editor.
-            editor = new TextEditor(MAX_LINE_LENGTH, MIN_WORD_LENGTH, MAX_WORD_LENGTH, PAGE_SIZE);
+            editor = new TextEditor(MAX_LINE_LENGTH, MIN_WORD_SIZE, MAX_WORD_SIZE, BUFFER_SIZE);
             editor.setFilePath(file.getPath());
 
             if (file.exists()) {
@@ -50,7 +50,7 @@ public class Main {
                 System.out.println("File does not exist. A new empty file was created");
             }
         } else {
-           editor = new TextEditor(MAX_LINE_LENGTH, MIN_WORD_LENGTH, MAX_WORD_LENGTH, PAGE_SIZE);
+           editor = new TextEditor(MAX_LINE_LENGTH, MIN_WORD_SIZE, MAX_WORD_SIZE, BUFFER_SIZE);
            editor.setBasePath(basePath);
 
            System.out.println("A blank text editor has opened.");
